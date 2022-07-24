@@ -17,9 +17,10 @@ _ACTIVE = 0
 
 
 class EffectBase():
+    speed = 1
+
     def __init__(self, neopixel):
         self.neopixel = neopixel
-        self.speed = 1
         self.active = False
 
     def run(self):
@@ -29,14 +30,14 @@ class EffectBase():
         self.active = False
 
     def faster(self):
-        if self.speed < 2:
-            self.speed += 0.1
-            print(f'Speed: {self.speed}')
+        if EffectBase.speed < 2:
+            EffectBase.speed += 0.1
+            print(f'Speed: {EffectBase.speed}')
 
     def slower(self):
-        if self.speed > 0.1:
-            self.speed -= 0.1
-            print(f'Speed: {self.speed}')
+        if EffectBase.speed > 0.1:
+            EffectBase.speed -= 0.1
+            print(f'Speed: {EffectBase.speed}')
 
     def update(self, colors):
         for index, color in enumerate(colors):
@@ -63,7 +64,7 @@ class Circle(EffectBase):
             pixels[pixel_idx] = on
             pixel_idx = (pixel_idx + 1) % self.neopixel.n
             self.update(pixels)
-            time.sleep(0.25 / self.speed)
+            time.sleep(0.25 / EffectBase.speed)
             if pixel_idx == 0:
                 color_idx = (color_idx + 1) % len(self.colors)
 
@@ -90,7 +91,7 @@ class Palette(EffectBase):
                 else:
                     fade_in = True
                     color_idx = (color_idx + 2) % 3
-            time.sleep(0.01 / self.speed)
+            time.sleep(0.01 / EffectBase.speed)
 
 
 def on_up(pressed):
