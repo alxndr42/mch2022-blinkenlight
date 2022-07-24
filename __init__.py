@@ -12,24 +12,21 @@ OFF = (0, 0, 0)
 
 _DATAPIN = Pin(5, Pin.OUT)
 _NEOPIXEL = NeoPixel(_DATAPIN, 5)
-_EFFECT = None
+_EFFECTS = None
+_ACTIVE = 0
 
 
 class EffectBase():
-    def on_a(self, pressed):
-        pass
-
-    def on_b(self, pressed):
-        pass
-
-    def __init__(self, neopixel, speed=1):
+    def __init__(self, neopixel):
         self.neopixel = neopixel
-        self.speed = speed
-        buttons.attach(buttons.BTN_A, self.on_a)
-        buttons.attach(buttons.BTN_B, self.on_b)
+        self.speed = 1
+        self.active = False
 
     def run(self):
         raise Exception('Not implemented.')
+
+    def stop(self):
+        self.active = False
 
     def faster(self):
         if self.speed < 2:
@@ -48,12 +45,16 @@ class EffectBase():
 
 
 class Circle(EffectBase):
-    """Send a pixel around the outer LEDs in MCH or RGB colors."""
+    """Send a pixel around the outer LEDs."""
+    def __init__(self, neopixel, colors):
+        super().__init__(neopixel)
+        self.colors = colors
+
     def run(self):
-        self.colors = MCH
+        self.active = True
         color_idx = 0
         pixel_idx = 0
-        while True:
+        while self.active:
             on = self.colors[color_idx]
             pixels = [OFF for i in range(self.neopixel.n)]
             pixels[1] = on
@@ -66,29 +67,58 @@ class Circle(EffectBase):
             if pixel_idx == 0:
                 color_idx = (color_idx + 1) % len(self.colors)
 
-    def on_a(self, pressed):
-        if pressed:
-            print('on_a')
-            if self.colors == MCH:
-                self.colors = RGB
-                print('Switched to RGB')
+
+class Palette(EffectBase):
+    """Cycle through the color palette on all LEDs."""
+    def run(self):
+        self.active = True
+        color = [255, 0, 0]
+        color_idx = 1
+        fade_in = True
+        while self.active:
+            colors = [color for i in range(self.neopixel.n)]
+            self.update(colors)
+            if fade_in:
+                if color[color_idx] < 255:
+                    color[color_idx] += 1
+                else:
+                    fade_in = False
+                    color_idx = (color_idx - 1) % 3
             else:
-                self.colors = MCH
-                print('Switched to MCH')
+                if color[color_idx] > 0:
+                    color[color_idx] -= 1
+                else:
+                    fade_in = True
+                    color_idx = (color_idx + 2) % 3
+            time.sleep(0.01 / self.speed)
 
 
 def on_up(pressed):
     if pressed:
         print('on_up')
-        if _EFFECT:
-            _EFFECT.faster()
+        _EFFECTS[_ACTIVE].faster()
 
 
 def on_down(pressed):
     if pressed:
         print('on_down')
-        if _EFFECT:
-            _EFFECT.slower()
+        _EFFECTS[_ACTIVE].slower()
+
+
+def on_a(pressed):
+    if pressed:
+        print('on_a')
+        global _ACTIVE
+        _EFFECTS[_ACTIVE].stop()
+        _ACTIVE = (_ACTIVE + 1) % len(_EFFECTS)
+
+
+def on_b(pressed):
+    if pressed:
+        print('on_b')
+        global _ACTIVE
+        _EFFECTS[_ACTIVE].stop()
+        _ACTIVE = (_ACTIVE - 1) % len(_EFFECTS)
 
 
 def on_home(pressed):
@@ -100,10 +130,18 @@ def on_home(pressed):
 
 buttons.attach(buttons.BTN_UP, on_up)
 buttons.attach(buttons.BTN_DOWN, on_down)
+buttons.attach(buttons.BTN_A, on_a)
+buttons.attach(buttons.BTN_B, on_b)
 buttons.attach(buttons.BTN_HOME, on_home)
 powerPin = Pin(19, Pin.OUT)
 powerPin.on()
-
 mch22.set_brightness(0)
-_EFFECT = Circle(_NEOPIXEL)
-_EFFECT.run()
+
+_EFFECTS = [
+    Palette(_NEOPIXEL),
+    Circle(_NEOPIXEL, MCH),
+    Circle(_NEOPIXEL, RGB),
+]
+while True:
+    print(f'Active: {_ACTIVE}')
+    _EFFECTS[_ACTIVE].run()
