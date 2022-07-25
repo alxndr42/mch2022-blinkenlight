@@ -1,3 +1,4 @@
+import random
 import time
 
 import buttons
@@ -99,6 +100,26 @@ class Palette(EffectBase):
             time.sleep(0.01 / EffectBase.speed)
 
 
+class Random(EffectBase):
+    """Light a random pixel."""
+    def __init__(self, neopixel):
+        super().__init__(neopixel)
+
+    def run(self):
+        color_cycle = ColorCycle()
+        pixel = 0
+        next_pixel = 0
+        self.active = True
+        while self.active:
+            colors = [OFF for i in range(self.neopixel.n)]
+            colors[pixel] = color_cycle.next(15)
+            self.update(colors)
+            while next_pixel == pixel:
+                next_pixel = random.randint(0, self.neopixel.n - 1)
+            pixel = next_pixel
+            time.sleep(0.2 / EffectBase.speed)
+
+
 class Runner(EffectBase):
     """Run a pixel back and forth."""
     def __init__(self, neopixel, pixels):
@@ -181,6 +202,7 @@ _EFFECTS = [
     Palette(_NEOPIXEL),
     Circle(_NEOPIXEL),
     Runner(_NEOPIXEL, [4, 1, 2]),
+    Random(_NEOPIXEL),
 ]
 while True:
     print(f'Active: {_ACTIVE}')
