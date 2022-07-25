@@ -16,12 +16,19 @@ _ACTIVE = 0
 
 
 class ColorCycle():
+    """Cycle through the color palette via next()."""
+
     def __init__(self):
         self.color = [255, 0, 0]
         self.color_idx = 1
         self.fade_in = True
 
     def next(self, step=1):
+        """Return the next color tuple.
+
+        Increase step for faster cycling.
+        """
+
         value = self.color[self.color_idx]
         if self.fade_in:
             if value < 255:
@@ -35,7 +42,7 @@ class ColorCycle():
             else:
                 self.fade_in = True
                 self.color_idx = (self.color_idx + 2) % 3
-        return self.color
+        return tuple(self.color)
 
 
 class EffectBase():
@@ -69,8 +76,6 @@ class EffectBase():
 
 class Circle(EffectBase):
     """Send a pixel around the outer LEDs."""
-    def __init__(self, neopixel):
-        super().__init__(neopixel)
 
     def run(self):
         color_cycle = ColorCycle()
@@ -90,6 +95,7 @@ class Circle(EffectBase):
 
 class Palette(EffectBase):
     """Cycle through the color palette on all LEDs."""
+
     def run(self):
         color_cycle = ColorCycle()
         self.active = True
@@ -102,8 +108,6 @@ class Palette(EffectBase):
 
 class Random(EffectBase):
     """Light a random pixel."""
-    def __init__(self, neopixel):
-        super().__init__(neopixel)
 
     def run(self):
         color_cycle = ColorCycle()
@@ -122,22 +126,21 @@ class Random(EffectBase):
 
 class Runner(EffectBase):
     """Run a pixel back and forth."""
-    def __init__(self, neopixel, pixels):
-        super().__init__(neopixel)
-        self.pixels = pixels
 
     def run(self):
         color_cycle = ColorCycle()
+        middle = [3, 1, 0, 1]
+        pixels = [4, 1, 2]
         pixel_idx = 0
         forward = True
         self.active = True
         while self.active:
             colors = [OFF for i in range(self.neopixel.n)]
-            colors[self.pixels[pixel_idx]] = color_cycle.next(15)
+            colors[pixels[pixel_idx]] = color_cycle.next(15)
             self.update(colors)
             if forward:
                 pixel_idx += 1
-                if pixel_idx < len(self.pixels):
+                if pixel_idx < len(pixels):
                     sleep = 0.25 / EffectBase.speed
                 else:
                     pixel_idx -= 2
@@ -151,6 +154,8 @@ class Runner(EffectBase):
                     pixel_idx = 1
                     forward = True
                     sleep = 0.45 / EffectBase.speed
+                    pixels[1] = middle[0]
+                    middle = middle[1:] + middle[:1]
             time.sleep(sleep)
 
 
@@ -201,7 +206,7 @@ mch22.set_brightness(0)
 _EFFECTS = [
     Palette(_NEOPIXEL),
     Circle(_NEOPIXEL),
-    Runner(_NEOPIXEL, [4, 1, 2]),
+    Runner(_NEOPIXEL),
     Random(_NEOPIXEL),
 ]
 while True:
