@@ -52,7 +52,7 @@ class EffectBase():
         self.active = False
 
     def faster(self):
-        if EffectBase.speed < 2:
+        if EffectBase.speed < 3:
             EffectBase.speed += 0.1
             print(f'Speed: {EffectBase.speed}')
 
