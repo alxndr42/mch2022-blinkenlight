@@ -6,14 +6,35 @@ import mch22
 from neopixel import NeoPixel
 
 
-MCH = [(0x49, 0x1d, 0x88), (0xfa, 0x44, 0x8c), (0x43, 0xb5, 0xa0)]
-RGB = [(0xff, 0, 0), (0, 0xff, 0), (0, 0, 0xff)]
 OFF = (0, 0, 0)
 
 _DATAPIN = Pin(5, Pin.OUT)
 _NEOPIXEL = NeoPixel(_DATAPIN, 5)
 _EFFECTS = None
 _ACTIVE = 0
+
+
+class ColorCycle():
+    def __init__(self):
+        self.color = [255, 0, 0]
+        self.color_idx = 1
+        self.fade_in = True
+
+    def next(self, step=1):
+        value = self.color[self.color_idx]
+        if self.fade_in:
+            if value < 255:
+                self.color[self.color_idx] = min(255, value + step)
+            else:
+                self.fade_in = False
+                self.color_idx = (self.color_idx - 1) % 3
+        else:
+            if value > 0:
+                self.color[self.color_idx] = max(0, value - step)
+            else:
+                self.fade_in = True
+                self.color_idx = (self.color_idx + 2) % 3
+        return self.color
 
 
 class EffectBase():
@@ -47,51 +68,69 @@ class EffectBase():
 
 class Circle(EffectBase):
     """Send a pixel around the outer LEDs."""
-    def __init__(self, neopixel, colors):
+    def __init__(self, neopixel):
         super().__init__(neopixel)
-        self.colors = colors
 
     def run(self):
-        self.active = True
-        color_idx = 0
+        color_cycle = ColorCycle()
         pixel_idx = 0
+        self.active = True
         while self.active:
-            on = self.colors[color_idx]
+            color = color_cycle.next(15)
             pixels = [OFF for i in range(self.neopixel.n)]
-            pixels[1] = on
+            pixels[1] = color
             if pixel_idx == 1:
                 pixel_idx += 1
-            pixels[pixel_idx] = on
+            pixels[pixel_idx] = color
             pixel_idx = (pixel_idx + 1) % self.neopixel.n
             self.update(pixels)
             time.sleep(0.25 / EffectBase.speed)
-            if pixel_idx == 0:
-                color_idx = (color_idx + 1) % len(self.colors)
 
 
 class Palette(EffectBase):
     """Cycle through the color palette on all LEDs."""
     def run(self):
+        color_cycle = ColorCycle()
         self.active = True
-        color = [255, 0, 0]
-        color_idx = 1
-        fade_in = True
         while self.active:
+            color = color_cycle.next()
             colors = [color for i in range(self.neopixel.n)]
             self.update(colors)
-            if fade_in:
-                if color[color_idx] < 255:
-                    color[color_idx] += 1
-                else:
-                    fade_in = False
-                    color_idx = (color_idx - 1) % 3
-            else:
-                if color[color_idx] > 0:
-                    color[color_idx] -= 1
-                else:
-                    fade_in = True
-                    color_idx = (color_idx + 2) % 3
             time.sleep(0.01 / EffectBase.speed)
+
+
+class Runner(EffectBase):
+    """Run a pixel back and forth."""
+    def __init__(self, neopixel, pixels):
+        super().__init__(neopixel)
+        self.pixels = pixels
+
+    def run(self):
+        color_cycle = ColorCycle()
+        pixel_idx = 0
+        forward = True
+        self.active = True
+        while self.active:
+            colors = [OFF for i in range(self.neopixel.n)]
+            colors[self.pixels[pixel_idx]] = color_cycle.next(15)
+            self.update(colors)
+            if forward:
+                pixel_idx += 1
+                if pixel_idx < len(self.pixels):
+                    sleep = 0.25 / EffectBase.speed
+                else:
+                    pixel_idx -= 2
+                    forward = False
+                    sleep = 0.45 / EffectBase.speed
+            else:
+                pixel_idx -= 1
+                if pixel_idx >= 0:
+                    sleep = 0.25 / EffectBase.speed
+                else:
+                    pixel_idx = 1
+                    forward = True
+                    sleep = 0.45 / EffectBase.speed
+            time.sleep(sleep)
 
 
 def on_up(pressed):
@@ -140,8 +179,8 @@ mch22.set_brightness(0)
 
 _EFFECTS = [
     Palette(_NEOPIXEL),
-    Circle(_NEOPIXEL, MCH),
-    Circle(_NEOPIXEL, RGB),
+    Circle(_NEOPIXEL),
+    Runner(_NEOPIXEL, [4, 1, 2]),
 ]
 while True:
     print(f'Active: {_ACTIVE}')
